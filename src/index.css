@@ -1,0 +1,120 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-void-bg: var(--bg-color, #050505);
+  --color-void-surface: var(--surface-color, #121212);
+  --color-void-accent: var(--accent-color, #00d4ff);
+  --color-void-accent-glow: var(--accent-glow, rgba(0, 212, 255, 0.2));
+  
+  --font-sans: var(--font-primary, "Inter", "Geist Sans", ui-sans-serif, system-ui, sans-serif);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  :root {
+    --vh: 1vh;
+  }
+
+  body {
+    background-color: var(--color-void-bg);
+    background-image: var(--bg-image, none);
+    color: var(--text-primary, #ffffff);
+    font-family: var(--font-sans);
+    overflow-x: hidden;
+    height: 100vh;
+    height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mesh-glow {
+  filter: blur(120px);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+@media (max-width: 1023px) {
+  .mobile-safe-area {
+    padding-bottom: 140px !important;
+  }
+}
+
+/* Range input thumb styling */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(255,255,255,0.5);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+  border: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 15s linear infinite;
+}
+
+.pause {
+  animation-play-state: paused;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+

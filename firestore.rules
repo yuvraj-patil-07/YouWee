@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName']) &&
+             data.displayName is string && data.displayName.size() <= 50 &&
+             (!data.keys().contains('photoURL') || (data.photoURL is string && data.photoURL.size() <= 500)) &&
+             (!data.keys().contains('email') || (data.email is string && data.email.size() <= 100));
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['hostId', 'active']) &&
+             data.hostId == request.auth.uid &&
+             data.active is bool;
+    }
+
+    function isValidLikedTrack(data) {
+      return data.keys().hasAll(['userId', 'trackId', 'title', 'artist']) &&
+             data.userId == request.auth.uid &&
+             data.trackId is string && data.trackId.size() <= 64 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.artist is string && data.artist.size() <= 200;
+    }
+
+    // --- Rules ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid; // Dummy check for list safety
+      
+      allow create: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().createdAt == request.time;
+      
+      allow update: if isOwner(userId) && isValidUser(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'email']) &&
+                    incoming().createdAt == existing().createdAt;
+
+      match /likedTracks/{trackId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidLikedTrack(incoming()) && 
+                      incoming().likedAt == request.time && isValidId(trackId);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isVerified() && isValidRoom(incoming()) && 
+                    incoming().createdAt == request.time && isValidId(roomId);
+      allow update: if isVerified() && isOwner(existing().hostId) && isValidRoom(incoming()) &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['active']) &&
+                    incoming().createdAt == existing().createdAt &&
+                    incoming().hostId == existing().hostId;
+      allow delete: if isVerified() && isOwner(existing().hostId);
+    }
+  }
+}

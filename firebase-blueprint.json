@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "A social music streaming room",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostId", "active"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName"]
+    },
+    "LikedTrack": {
+      "title": "Liked Track",
+      "description": "A track liked by a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "trackId": { "type": "string" },
+        "title": { "type": "string" },
+        "artist": { "type": "string" },
+        "thumbnail": { "type": "string" },
+        "likedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "trackId"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Active rooms"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/likedTracks/{trackId}": {
+      "schema": "LikedTrack",
+      "description": "Tracks liked by the user"
+    }
+  }
+}
