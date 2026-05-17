@@ -167,7 +167,7 @@ export function Player() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-            className="fixed inset-0 z-[100] flex flex-col bg-void-bg"
+            className="expanded-player fixed inset-0 z-[100] flex flex-col bg-void-bg"
           >
             {/* Background Blur Artwork */}
             <div className="absolute inset-0 z-0 overflow-hidden opacity-30">
@@ -198,7 +198,7 @@ export function Player() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="relative mx-auto w-full max-w-[320px] sm:max-w-[480px] aspect-square rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 group"
+                  className="album-art relative mx-auto w-full max-w-[320px] sm:max-w-[480px] aspect-square rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 group"
                 >
                   <img src={currentSong?.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -226,7 +226,7 @@ export function Player() {
 
                   {/* Progress Section */}
                   <div className="space-y-3">
-                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden cursor-pointer group/seek" onClick={handleSeek}>
+                    <div className="player-progress h-2 w-full bg-white/5 rounded-full overflow-hidden cursor-pointer group/seek" onClick={handleSeek}>
                       <div className="h-full bg-void-accent relative shadow-[0_0_20px_rgba(0,212,255,0.5)]" style={{ width: `${progress}%` }}>
                         <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full scale-0 group-hover/seek:scale-100 transition-transform shadow-xl" />
                       </div>
@@ -355,11 +355,11 @@ export function Player() {
         initial={{ y: 200, opacity: 0 }}
         animate={{ y: isMinimized ? 200 : 0, opacity: isMinimized ? 0 : 1 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed bottom-[58px] left-1/2 z-50 flex min-h-[68px] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:bottom-6 sm:min-h-[88px] lg:bottom-6"
+        className="player-shell fixed bottom-[58px] left-1/2 z-50 flex min-h-[68px] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:bottom-6 sm:min-h-[88px] lg:bottom-6"
       >
         {/* Progress bar — full width, large touch target */}
         <div
-          className="relative h-1 w-full cursor-pointer group/progress"
+          className="player-progress relative h-1 w-full cursor-pointer group/progress"
           onClick={handleSeek}
           onTouchStart={handleSeek}
           style={{ touchAction: 'none' }}
