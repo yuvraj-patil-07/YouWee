@@ -26,7 +26,7 @@ interface JamRoomProps {
 }
 
 export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
-  const { users, currentSong, isHost, jamReactions, skipVotes, songRequests, chatMessages, currentUser } = useStore();
+  const { users, currentSong, isHost, jamReactions, skipVotes, songRequests, chatMessages, currentUser, socket } = useStore();
   const [activeTab, setActiveTab] = useState<'vibes' | 'queue' | 'chat'>('vibes');
   const [chatInput, setChatInput] = useState('');
   const [copied, setCopied] = useState(false);
@@ -186,9 +186,9 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar mt-2 px-3 pb-4 min-h-0">
+      <div className="flex-1 flex flex-col mt-2 px-3 pb-4 min-h-0 overflow-hidden">
         {activeTab === 'vibes' && (
-          <div className="space-y-5">
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-5">
             {/* Emoji Reaction Pad */}
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25 mb-2.5">Express your vibe</p>
@@ -197,7 +197,7 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
                   <button
                     key={emoji}
                     onClick={() => sendReaction(emoji)}
-                    className="aspect-square rounded-2xl bg-white/5 border border-white/5 text-2xl flex items-center justify-center hover:bg-white/10 hover:scale-105 active:scale-90 transition-all shadow-lg"
+                    className="aspect-square rounded-2xl bg-white/5 border border-white/5 text-2xl flex items-center justify-center hover:bg-white/10 hover:scale-105 active:scale-90 transition-all shadow-lg cursor-pointer"
                   >
                     {emoji}
                   </button>
@@ -240,7 +240,7 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
         )}
 
         {activeTab === 'queue' && (
-          <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
             <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/25">Song Requests</p>
             {songRequests.length === 0 ? (
               <div className="py-8 text-center text-white/20">
@@ -259,7 +259,7 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
                   {isHost && (
                     <button
                       onClick={() => jamSync.approveRequest(req.id)}
-                      className="rounded-lg bg-void-accent/20 border border-void-accent/30 text-void-accent px-2 py-1 text-[9px] font-bold hover:bg-void-accent/30 transition-all active:scale-95"
+                      className="rounded-lg bg-void-accent/20 border border-void-accent/30 text-void-accent px-2 py-1 text-[9px] font-bold hover:bg-void-accent/30 transition-all active:scale-95 cursor-pointer"
                     >
                       Add
                     </button>
@@ -271,8 +271,8 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
         )}
 
         {activeTab === 'chat' && (
-          <div className="flex flex-col h-full">
-            <div className="flex-1 space-y-2 min-h-0 overflow-y-auto">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 space-y-2 overflow-y-auto custom-scrollbar pr-1">
               {chatMessages.length === 0 ? (
                 <div className="py-8 text-center text-white/20">
                   <MessageCircle className="w-6 h-6 mx-auto mb-2 opacity-20" />
@@ -280,14 +280,14 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
                 </div>
               ) : (
                 chatMessages.map(msg => (
-                  <div key={msg.id} className={`flex gap-2 ${msg.userId === (currentUser as any)?.uid ? 'flex-row-reverse' : ''}`}>
+                  <div key={msg.id} className={`flex gap-2 ${msg.userId === socket?.id ? 'flex-row-reverse' : ''}`}>
                     <div className="w-6 h-6 rounded-full bg-neutral-800 overflow-hidden shrink-0 border border-white/10">
                       {msg.avatar ? <img src={msg.avatar} className="w-full h-full object-cover" alt="" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold">{msg.name.slice(0, 2).toUpperCase()}</div>}
                     </div>
-                    <div className={`max-w-[75%] ${msg.userId === (currentUser as any)?.uid ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
+                    <div className={`max-w-[75%] ${msg.userId === socket?.id ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>
                       <span className="text-[8px] text-white/25 font-semibold">{msg.name}</span>
                       <div className={`rounded-2xl px-3 py-1.5 text-[11px] font-medium
-                        ${msg.userId === (currentUser as any)?.uid ? 'bg-void-accent/20 border border-void-accent/20 text-white' : 'bg-white/5 border border-white/5 text-white/80'}`}>
+                        ${msg.userId === socket?.id ? 'bg-void-accent/20 border border-void-accent/20 text-white' : 'bg-white/5 border border-white/5 text-white/80'}`}>
                         {msg.message}
                       </div>
                     </div>
@@ -303,9 +303,9 @@ export function JamRoom({ roomCode, onLeave, jamSync }: JamRoomProps) {
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Say something..."
                 maxLength={200}
-                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs placeholder:text-white/20 focus:outline-none focus:border-white/25"
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs placeholder:text-white/20 focus:outline-none focus:border-white/25 text-white"
               />
-              <button type="submit" disabled={!chatInput.trim()} className="p-2 rounded-xl bg-white/10 border border-white/10 text-white/50 hover:text-white hover:bg-white/15 transition-all disabled:opacity-20 active:scale-90">
+              <button type="submit" disabled={!chatInput.trim()} className="p-2 rounded-xl bg-white/10 border border-white/10 text-white/50 hover:text-white hover:bg-white/15 transition-all disabled:opacity-20 active:scale-90 cursor-pointer">
                 <Send className="w-4 h-4" />
               </button>
             </form>
