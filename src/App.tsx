@@ -234,9 +234,9 @@ export default function App() {
           {isJamHubOpen && (
             <motion.aside
               initial={{ x: 400 }} animate={{ x: 0 }} exit={{ x: 400 }}
-              className="fixed inset-y-0 right-0 z-[40] w-full border-l border-white/5 bg-void-bg/95 backdrop-blur-2xl sm:w-[380px] lg:relative lg:bg-black/20"
+              className="fixed top-0 bottom-20 lg:bottom-0 right-0 z-[40] w-full border-l border-white/5 bg-void-bg/95 backdrop-blur-2xl sm:w-[380px] lg:relative lg:bg-black/20"
             >
-              <div className="flex h-full flex-col">
+              <div className={`flex h-full flex-col ${currentSong ? 'pb-[76px] sm:pb-0' : ''}`}>
                 <div className="flex items-center justify-between p-4 lg:hidden">
                   <span className="font-black uppercase tracking-widest text-xs">Jam Hub</span>
                   <button onClick={() => setIsJamHubOpen(false)}><X className="w-6 h-6" /></button>
