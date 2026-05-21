@@ -128,7 +128,7 @@ export function Recommendations() {
                       <Clock3 className="h-3.5 w-3.5" />
                       <span>{formatDuration(song.duration)}</span>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2" onClick={e => e.stopPropagation()}>
                       <button
                         type="button"
                         onClick={() => addToQueue(song)}

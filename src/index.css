@@ -264,7 +264,6 @@
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
-  touch-action: pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -315,6 +314,7 @@ input[type="range"]::-moz-range-thumb {
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
+  height: 0px; /* Hide horizontal scrollbar */
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {

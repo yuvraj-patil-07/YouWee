@@ -95,19 +95,21 @@ export const useStore = create<AppState>((set, get) => {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
   };
 
-  const loadPlaylists = () => {
+  const getInitialPlaylists = () => {
     try {
-      const stored = localStorage.getItem('youwe_playlists');
-      if (!stored) return null;
+      const stored = localStorage.getItem('youwe_playlists_guest');
+      if (!stored) return defaultPlaylists;
       const parsed = JSON.parse(stored);
-      if (!Array.isArray(parsed) || parsed.length === 0) return null;
+      if (!Array.isArray(parsed) || parsed.length === 0) return defaultPlaylists;
       return parsed.map((p: Playlist) => {
         const def = defaultPlaylists.find(d => d.id === p.id);
         return (def && def.songs.length > p.songs.length) ? { ...def, updatedAt: Date.now() } : p;
       });
-    } catch { return null; }
+    } catch { return defaultPlaylists; }
   };
-  const savePlaylists = (playlists: Playlist[]) => saveToStorage('youwe_playlists', playlists);
+  const savePlaylists = (playlists: Playlist[], uid: string) => {
+    try { localStorage.setItem(`youwe_playlists_${uid}`, JSON.stringify(playlists)); } catch {}
+  };
 
   return {
     // ── Core ──────────────────────────────────────────────────────────────
@@ -148,7 +150,33 @@ export const useStore = create<AppState>((set, get) => {
     setUsers: (users) => set({ users }),
     setIsHost: (isHost) => set({ isHost }),
     setIsInJamRoom: (isInJamRoom) => set({ isInJamRoom }),
-    setCurrentUser: (currentUser) => set({ currentUser }),
+    setCurrentUser: (currentUser) => {
+      set({ currentUser });
+      const uid = currentUser?.uid || 'guest';
+      
+      const newPlaylists = (() => {
+        try {
+          const stored = localStorage.getItem(`youwe_playlists_${uid}`);
+          if (!stored) return defaultPlaylists;
+          const parsed = JSON.parse(stored);
+          if (!Array.isArray(parsed) || parsed.length === 0) return defaultPlaylists;
+          return parsed.map((p: Playlist) => {
+            const def = defaultPlaylists.find(d => d.id === p.id);
+            return (def && def.songs.length > p.songs.length) ? { ...def, updatedAt: Date.now() } : p;
+          });
+        } catch { return defaultPlaylists; }
+      })();
+
+      const newLiked = (() => {
+        try { const s = localStorage.getItem(`youwe_liked_${uid}`); return s ? JSON.parse(s) : []; } catch { return []; }
+      })();
+
+      const newRecent = (() => {
+        try { const s = localStorage.getItem(`youwe_recent_${uid}`); return s ? JSON.parse(s) : []; } catch { return []; }
+      })();
+
+      set({ playlists: newPlaylists, likedSongs: newLiked, recentlyPlayed: newRecent });
+    },
 
     // ── Queue ─────────────────────────────────────────────────────────────
     queue: [],
@@ -177,26 +205,55 @@ export const useStore = create<AppState>((set, get) => {
       return { queue: nextQueue, roomState: s.isInJamRoom ? { ...s.roomState, queue: nextQueue } : s.roomState };
     }),
 
-    playNextInQueue: () => set(s => {
+    playNextInQueue: async () => {
+      const s = get();
       if (s.repeatMode === 'one' && s.currentSong) {
-        return { roomState: { ...s.roomState, currentTime: 0, playing: true } };
+        set({ roomState: { ...s.roomState, currentTime: 0, playing: true } });
+        return;
       }
       if (s.queue.length > 0) {
         const idx = s.shuffleMode ? Math.floor(Math.random() * s.queue.length) : 0;
         const nextSong = s.queue[idx];
         get().addToRecentlyPlayed(nextSong);
         const remaining = s.queue.filter((_, i) => i !== idx);
-        return { currentSong: nextSong, queue: remaining, roomState: { ...s.roomState, videoId: nextSong.id, currentTime: 0, playing: true, currentSong: nextSong, queue: remaining } };
+        set({ currentSong: nextSong, queue: remaining, roomState: { ...s.roomState, videoId: nextSong.id, currentTime: 0, playing: true, currentSong: nextSong, queue: remaining } });
+        return;
       }
       if (s.recommendations.length > 0) {
         const idx = Math.floor(Math.random() * s.recommendations.length);
         const nextSong = s.recommendations[idx];
         get().addToRecentlyPlayed(nextSong);
         const remainingRecs = s.recommendations.filter((_, i) => i !== idx);
-        return { currentSong: nextSong, recommendations: remainingRecs, roomState: { ...s.roomState, videoId: nextSong.id, currentTime: 0, playing: true, currentSong: nextSong, queue: [] } };
+        set({ currentSong: nextSong, recommendations: remainingRecs, roomState: { ...s.roomState, videoId: nextSong.id, currentTime: 0, playing: true, currentSong: nextSong, queue: [] } });
+        return;
       }
-      return s;
-    }),
+
+      // If no recommendations are currently loaded, try to fetch them dynamically
+      if (s.currentSong) {
+        try {
+          set({ isBuffering: true });
+          const response = await fetch(`/api/recommendations?title=${encodeURIComponent(s.currentSong.title)}&artist=${encodeURIComponent(s.currentSong.artist)}`);
+          if (response.ok) {
+            const newRecs = await response.json();
+            if (newRecs && newRecs.length > 0) {
+              const idx = Math.floor(Math.random() * newRecs.length);
+              const nextSong = newRecs[idx];
+              get().addToRecentlyPlayed(nextSong);
+              const remainingRecs = newRecs.filter((_: any, i: number) => i !== idx);
+              set(state => ({
+                recommendations: remainingRecs,
+                currentSong: nextSong,
+                roomState: { ...state.roomState, videoId: nextSong.id, currentTime: 0, playing: true, currentSong: nextSong, queue: [] }
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch next recommendation automatically:", error);
+        } finally {
+          set({ isBuffering: false });
+        }
+      }
+    },
 
     playPrev: () => set(s => {
       // Find previous: skip over current song in history
@@ -217,45 +274,59 @@ export const useStore = create<AppState>((set, get) => {
     }),
 
     // ── Likes ─────────────────────────────────────────────────────────────
-    likedSongs: loadFromStorage<SongMetadata[]>('youwe_liked', []),
+    likedSongs: loadFromStorage<SongMetadata[]>('youwe_liked_guest', []),
     toggleLike: (song) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const exists = s.likedSongs.some(l => l.id === song.id);
       const updated = exists ? s.likedSongs.filter(l => l.id !== song.id) : [song, ...s.likedSongs];
-      saveToStorage('youwe_liked', updated);
+      try { localStorage.setItem(`youwe_liked_${uid}`, JSON.stringify(updated)); } catch {}
       get().addToast(exists ? 'Removed from Liked Songs' : `❤️ Liked "${song.title.slice(0, 25)}"`, 'success');
       return { likedSongs: updated };
     }),
     isLiked: (songId) => get().likedSongs.some(l => l.id === songId),
 
     // ── Recently Played ───────────────────────────────────────────────────
-    recentlyPlayed: loadFromStorage<SongMetadata[]>('youwe_recent', []),
+    recentlyPlayed: loadFromStorage<SongMetadata[]>('youwe_recent_guest', []),
     addToRecentlyPlayed: (song) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const filtered = s.recentlyPlayed.filter(r => r.id !== song.id);
       const updated = [song, ...filtered].slice(0, 20);
-      saveToStorage('youwe_recent', updated);
+      try { localStorage.setItem(`youwe_recent_${uid}`, JSON.stringify(updated)); } catch {}
       return { recentlyPlayed: updated };
     }),
 
     // ── Playlists ─────────────────────────────────────────────────────────
-    playlists: loadPlaylists() ?? defaultPlaylists,
-    setPlaylists: (playlists) => { savePlaylists(playlists); set({ playlists }); },
+    playlists: getInitialPlaylists(),
+    setPlaylists: (playlists) => set(s => { 
+      const uid = s.currentUser?.uid || 'guest';
+      savePlaylists(playlists, uid); 
+      return { playlists }; 
+    }),
     createPlaylist: (name, description = '', accentColor = '#00d4ff') => {
       const id = `playlist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const newPlaylist: Playlist = { id, name, description, songs: [], createdAt: Date.now(), updatedAt: Date.now(), accentColor };
-      set(s => { const updated = [...s.playlists, newPlaylist]; savePlaylists(updated); return { playlists: updated }; });
+      set(s => { 
+        const uid = s.currentUser?.uid || 'guest';
+        const updated = [...s.playlists, newPlaylist]; 
+        savePlaylists(updated, uid); 
+        return { playlists: updated }; 
+      });
       return id;
     },
     deletePlaylist: (playlistId) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const updated = s.playlists.filter(p => p.id !== playlistId);
-      savePlaylists(updated);
+      savePlaylists(updated, uid);
       return { playlists: updated };
     }),
     updatePlaylist: (playlistId, updates) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const updated = s.playlists.map(p => p.id === playlistId ? { ...p, ...updates, updatedAt: Date.now() } : p);
-      savePlaylists(updated);
+      savePlaylists(updated, uid);
       return { playlists: updated };
     }),
     addSongToPlaylist: (playlistId, song) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const updated = s.playlists.map(p => {
         if (p.id !== playlistId) return p;
         const exists = p.songs.some(s => s.id === song.id);
@@ -263,12 +334,13 @@ export const useStore = create<AppState>((set, get) => {
         get().addToast(`✅ Added to "${p.name}"`, 'success');
         return { ...p, songs: [...p.songs, song], updatedAt: Date.now() };
       });
-      savePlaylists(updated);
+      savePlaylists(updated, uid);
       return { playlists: updated };
     }),
     removeSongFromPlaylist: (playlistId, songId) => set(s => {
+      const uid = s.currentUser?.uid || 'guest';
       const updated = s.playlists.map(p => p.id === playlistId ? { ...p, songs: p.songs.filter(s => s.id !== songId), updatedAt: Date.now() } : p);
-      savePlaylists(updated);
+      savePlaylists(updated, uid);
       return { playlists: updated };
     }),
     playPlaylist: (playlistId) => set(s => {

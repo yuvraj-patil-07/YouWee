@@ -27,7 +27,7 @@ class YouTubeErrorBoundary extends React.Component<{ children: React.ReactNode }
 
 export function Player() {
   const {
-    currentSong, roomState, setRoomState, users, isHost,
+    currentSong, roomState, setRoomState, users, isHost, isInJamRoom,
     queue, playNextInQueue, playPrev, playFromQueue, removeFromQueueAt, emitRoomState,
     shuffleMode, repeatMode, toggleShuffle, cycleRepeat,
     likedSongs, toggleLike,
@@ -65,11 +65,51 @@ export function Player() {
         const total = currentSong.duration || 1;
         const progressValue = (current / total) * 100;
         if (!isNaN(progressValue)) { setProgress(progressValue); setCurrentTime(current); }
-        if ((!useStore.getState().isInJamRoom || isHost) && Math.abs(current - roomState.currentTime) > 1) { setRoomState({ currentTime: current }); }
+        if ((!isInJamRoom || isHost) && Math.abs(current - roomState.currentTime) > 1) { setRoomState({ currentTime: current }); }
+        
+        // Background Media Position Sync
+        if ('mediaSession' in navigator && navigator.mediaSession.setPositionState) {
+          navigator.mediaSession.setPositionState({
+            duration: total,
+            playbackRate: 1,
+            position: current
+          });
+        }
       } catch (e) { console.error('Player interval error:', e); }
     }, 1000);
     return () => clearInterval(interval);
-  }, [currentSong, isHost, getCurrentTime, setRoomState, isReady, roomState.currentTime]);
+  }, [currentSong, isHost, getCurrentTime, setRoomState, isReady, roomState.currentTime, isInJamRoom]);
+
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = roomState.playing ? 'playing' : 'paused';
+    }
+  }, [roomState.playing]);
+
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentSong) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentSong.title,
+        artist: currentSong.artist || 'Unknown Artist',
+        artwork: [
+          { src: currentSong.thumbnail, sizes: '512x512', type: 'image/jpeg' }
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        setRoomState({ playing: true });
+        emitRoomState({ playing: true });
+        play();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        setRoomState({ playing: false });
+        emitRoomState({ playing: false });
+        pause();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNextInQueue());
+    }
+  }, [currentSong, play, pause, playPrev, playNextInQueue, setRoomState, emitRoomState]);
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -107,7 +147,7 @@ export function Player() {
             opts={youtubeOpts}
             onReady={onReady}
             onStateChange={onStateChange}
-            onEnd={() => { if (isHost) playNextInQueue(); }}
+            onEnd={() => { if (!isInJamRoom || isHost) playNextInQueue(); }}
             onError={(e) => console.error('YouTube Player Error:', e.data)}
           />
         </YouTubeErrorBoundary>
@@ -120,7 +160,7 @@ export function Player() {
             initial={{ opacity: 0, y: 30, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.98 }}
-            className="fixed bottom-[148px] left-3 right-3 z-[110] mx-auto max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black/90 shadow-[0_28px_80px_rgba(0,0,0,0.75)] backdrop-blur-2xl sm:bottom-[140px]"
+            className="fixed bottom-[168px] left-3 right-3 z-[110] mx-auto max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-black/90 shadow-[0_28px_80px_rgba(0,0,0,0.75)] backdrop-blur-2xl sm:bottom-[140px]"
           >
             <div className="flex h-12 items-center gap-3 border-b border-white/10 px-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10">
@@ -166,8 +206,17 @@ export function Player() {
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300, mass: 0.8 }}
-            className="expanded-player fixed inset-0 z-[100] flex flex-col bg-void-bg"
+            transition={{ type: 'spring', damping: 35, stiffness: 350, mass: 0.8 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.9 }}
+            onDragEnd={(e, info) => {
+              // Physics-based dismiss gesture
+              if (info.offset.y > 100 || info.velocity.y > 400) {
+                setIsExpanded(false);
+              }
+            }}
+            className="expanded-player fixed inset-0 z-[100] flex flex-col bg-void-bg touch-none"
           >
             {/* Background Blur Artwork */}
             <div className="absolute inset-0 z-0 overflow-hidden opacity-30">
@@ -190,15 +239,15 @@ export function Player() {
             </div>
 
             {/* Content Container */}
-            <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 pb-12 max-w-5xl mx-auto w-full">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center w-full">
+            <div className="relative z-10 flex-1 flex flex-col items-center justify-start lg:justify-center px-4 sm:px-8 pb-6 sm:pb-12 max-w-5xl mx-auto w-full">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-12 lg:gap-20 items-center w-full min-h-min py-4 lg:py-0">
                 
                 {/* Left: Large Artwork */}
                 <motion.div 
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="album-art relative mx-auto w-full max-w-[320px] sm:max-w-[480px] aspect-square rounded-[3rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 group"
+                  className="album-art relative mx-auto w-full max-w-[280px] sm:max-w-[400px] lg:max-w-[480px] aspect-square rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-[0_30px_60px_rgba(0,0,0,0.6)] sm:shadow-[0_50px_100px_rgba(0,0,0,0.8)] border border-white/10 group"
                 >
                   <img src={currentSong?.thumbnail} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -208,20 +257,20 @@ export function Player() {
                 </motion.div>
 
                 {/* Right: Info & Detailed Controls */}
-                <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-6 sm:gap-8 w-full max-w-md mx-auto lg:max-w-none">
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-start justify-between mb-1 sm:mb-2 gap-4">
                       <motion.h1 
                         layoutId="player-title"
-                        className="text-3xl sm:text-5xl font-black tracking-tighter leading-tight"
+                        className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tighter leading-tight line-clamp-2"
                       >
                         {currentSong?.title}
                       </motion.h1>
-                      <button onClick={() => currentSong && toggleLike(currentSong)} className={`p-4 rounded-full transition-all active:scale-90 ${isLiked ? 'text-pink-500' : 'text-white/20'}`}>
-                        <Heart className={`w-8 h-8 ${isLiked ? 'fill-current' : ''}`} />
+                      <button onClick={() => currentSong && toggleLike(currentSong)} className={`p-2 sm:p-4 rounded-full transition-all active:scale-90 flex-shrink-0 mt-1 ${isLiked ? 'text-pink-500' : 'text-white/20'}`}>
+                        <Heart className={`w-6 h-6 sm:w-8 sm:h-8 ${isLiked ? 'fill-current' : ''}`} />
                       </button>
                     </div>
-                    <p className="text-xl sm:text-2xl font-bold text-void-accent opacity-80">{currentSong?.artist}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-void-accent opacity-80 truncate">{currentSong?.artist}</p>
                   </div>
 
                   {/* Progress Section */}
@@ -238,39 +287,39 @@ export function Player() {
                   </div>
 
                   {/* Playback Controls */}
-                  <div className="flex items-center justify-between px-2">
-                    <button onClick={toggleShuffle} className={`p-3 rounded-xl transition-all ${shuffleMode ? 'text-void-accent bg-void-accent/10' : 'text-white/30'}`}>
-                      <Shuffle className="w-6 h-6" />
+                  <div className="flex items-center justify-between px-1 sm:px-2">
+                    <button onClick={toggleShuffle} className={`p-2 sm:p-3 rounded-xl transition-all ${shuffleMode ? 'text-void-accent bg-void-accent/10' : 'text-white/30'}`}>
+                      <Shuffle className="w-5 h-5 sm:w-6 sm:h-6" />
                     </button>
-                    <div className="flex items-center gap-6 sm:gap-10">
-                      <button onClick={playPrev} className="p-4 text-white/60 hover:text-white transition-all active:scale-90">
-                        <SkipBack className="w-10 h-10 fill-current" />
+                    <div className="flex items-center gap-4 sm:gap-10">
+                      <button onClick={playPrev} className="p-3 sm:p-4 text-white/60 hover:text-white transition-all active:scale-90">
+                        <SkipBack className="w-8 h-8 sm:w-10 sm:h-10 fill-current" />
                       </button>
-                      <button onClick={handlePlayPause} className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center rounded-full bg-white text-black shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all">
-                        {roomState.playing ? <Pause className="w-10 h-10 fill-current" /> : <Play className="w-10 h-10 fill-current ml-2" />}
+                      <button onClick={handlePlayPause} className="w-16 h-16 sm:w-24 sm:h-24 flex items-center justify-center rounded-full bg-white text-black shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all">
+                        {roomState.playing ? <Pause className="w-8 h-8 sm:w-10 sm:h-10 fill-current" /> : <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-current ml-2" />}
                       </button>
-                      <button onClick={playNextInQueue} className="p-4 text-white/60 hover:text-white transition-all active:scale-90">
-                        <SkipForward className="w-10 h-10 fill-current" />
+                      <button onClick={playNextInQueue} className="p-3 sm:p-4 text-white/60 hover:text-white transition-all active:scale-90">
+                        <SkipForward className="w-8 h-8 sm:w-10 sm:h-10 fill-current" />
                       </button>
                     </div>
-                    <button onClick={cycleRepeat} className={`p-3 rounded-xl transition-all ${repeatMode !== 'off' ? 'text-void-accent bg-void-accent/10' : 'text-white/30'}`}>
+                    <button onClick={cycleRepeat} className={`p-2 sm:p-3 rounded-xl transition-all ${repeatMode !== 'off' ? 'text-void-accent bg-void-accent/10' : 'text-white/30'}`}>
                       {repeatIcon}
                     </button>
                   </div>
 
                   {/* Secondary Actions Row */}
-                  <div className="flex items-center justify-center gap-8 pt-4">
-                    <button onClick={() => setIsQueueOpen(true)} className="flex items-center gap-3 px-6 py-3 rounded-2xl border border-white/10 text-white/50 bg-white/5 hover:bg-white/10 transition-all">
-                      <ListMusic className="w-5 h-5" />
-                      <span className="text-sm font-bold uppercase tracking-widest">Queue</span>
+                  <div className="flex items-center justify-center gap-6 sm:gap-8 pt-2 sm:pt-4">
+                    <button onClick={() => setIsQueueOpen(true)} className="flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl border border-white/10 text-white/50 bg-white/5 hover:bg-white/10 transition-all">
+                      <ListMusic className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="text-xs sm:text-sm font-bold uppercase tracking-widest">Queue</span>
                     </button>
-                    <button className="p-4 rounded-full bg-white/5 border border-white/10 text-white/50 hover:text-white transition-all">
-                      <Share2 className="w-5 h-5" />
+                    <button className="p-3 sm:p-4 rounded-full bg-white/5 border border-white/10 text-white/50 hover:text-white transition-all">
+                      <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                   </div>
 
                   {/* Metadata Specs */}
-                  <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/5 pt-8">
+                  <div className="hidden sm:grid mt-8 grid-cols-3 gap-4 border-t border-white/5 pt-8">
                     <div className="text-center">
                       <p className="text-[10px] font-black uppercase tracking-widest text-white/20 mb-1">Quality</p>
                       <p className="text-xs font-bold text-white/60">FLAC 24-bit</p>
@@ -298,7 +347,7 @@ export function Player() {
             initial={{ opacity: 0, scale: 0.9, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            className="fixed bottom-[148px] right-4 z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-black/80 p-3 backdrop-blur-2xl shadow-2xl sm:hidden"
+            className="fixed bottom-[168px] right-4 z-50 flex flex-col items-center gap-2 rounded-2xl border border-white/10 bg-black/80 p-3 backdrop-blur-2xl shadow-2xl sm:hidden"
           >
             <VolumeX className="w-4 h-4 text-white/30" />
             <input
@@ -355,7 +404,7 @@ export function Player() {
         initial={{ y: 200, opacity: 0 }}
         animate={{ y: isMinimized ? 200 : 0, opacity: isMinimized ? 0 : 1 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="player-shell fixed bottom-[58px] left-1/2 z-50 flex min-h-[68px] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:bottom-6 sm:min-h-[88px] lg:bottom-6"
+        className="player-shell fixed bottom-[88px] left-1/2 z-50 flex min-h-[68px] w-[calc(100%-1rem)] max-w-4xl -translate-x-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/80 shadow-[0_20px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:bottom-6 sm:min-h-[88px] lg:bottom-6"
       >
         {/* Progress bar — full width, large touch target */}
         <div
