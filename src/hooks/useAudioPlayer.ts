@@ -1,100 +1,174 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { useStore } from '../store';
-
 import { registerPlugin } from '@capacitor/core';
 
-const NativeMusic = registerPlugin<any>('NativeMusic');
+const NativeMusic = registerPlugin<any>('NativeMusic', {
+  web: () => Promise.resolve({}), // Fallback if not on Android
+});
 
 export function useAudioPlayer() {
+  const playerRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
   const { roomState, setRoomState, isHost } = useStore();
   const [currentTime, setCurrentTime] = useState(0);
 
-  useEffect(() => {
-    let playbackStateListener: any;
-    let trackChangedListener: any;
+  const onReady = (event: any) => {
+    console.log('YouTube Player Ready');
+    playerRef.current = event.target;
+    setIsReady(true);
+    if (roomState.playing) {
+      event.target.playVideo();
+    }
+  };
 
-    const init = async () => {
-      playbackStateListener = await NativeMusic.addListener('playbackStateChanged', (data: any) => {
-        setRoomState({ playing: data.isPlaying });
-      });
+  const onStateChange = (event: any) => {
+    // 1 = playing, 2 = paused
+    if (event.data === 1) {
+      setRoomState({ playing: true });
+    } else if (event.data === 2) {
+      setRoomState({ playing: false });
+    }
+  };
 
-      trackChangedListener = await NativeMusic.addListener('trackChanged', (data: any) => {
-        // track changed
-      });
-
-      setIsReady(true);
-      
-      // Request battery optimization ignore for stable background
-      try {
-        await NativeMusic.requestIgnoreBatteryOptimization();
-      } catch (e) {
-        console.error("Battery opt prompt failed", e);
-      }
-    };
-
-    init();
-
-    // Polling for current time since getCurrentTime needs to be synchronous for some UI
-    const interval = setInterval(async () => {
-      try {
-        const state = await NativeMusic.getPlaybackState();
-        setCurrentTime(state.position / 1000);
-      } catch (e) {}
-    }, 1000);
-
-    return () => {
-      playbackStateListener?.remove();
-      trackChangedListener?.remove();
-      clearInterval(interval);
-    };
-  }, []);
-
-  const onReady = () => setIsReady(true);
-
-  const onStateChange = () => {};
   const onEnd = () => {};
 
-  const play = useCallback(async (url?: string) => {
-    try {
-      if (url) {
-        await NativeMusic.play({ url });
-      } else {
-        await NativeMusic.resume();
+  const play = useCallback(async () => {
+    if (playerRef.current) {
+      try {
+        const iframe = playerRef.current.getIframe?.();
+        if (iframe && document.body.contains(iframe)) {
+          playerRef.current.playVideo();
+        }
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) { console.error(e) }
+    }
+    // Update native music session for background state if running on Capacitor Android
+    try {
+      await NativeMusic.resume();
+    } catch (e) {}
   }, []);
 
   const pause = useCallback(async () => {
+    if (playerRef.current) {
+      try {
+        const iframe = playerRef.current.getIframe?.();
+        if (iframe && document.body.contains(iframe)) {
+          playerRef.current.pauseVideo();
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
     try {
       await NativeMusic.pause();
-    } catch (e) { console.error(e) }
+    } catch (e) {}
   }, []);
 
   const seekTo = useCallback(async (time: number) => {
+    if (playerRef.current) {
+      try {
+        const iframe = playerRef.current.getIframe?.();
+        if (iframe && document.body.contains(iframe)) {
+          playerRef.current.seekTo(time, true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
     try {
       await NativeMusic.seekTo({ position: time * 1000 });
-    } catch (e) { console.error(e) }
+    } catch (e) {}
   }, []);
 
-  const getCurrentTimeSync = useCallback(() => {
+  const getCurrentTime = useCallback(() => {
+    if (playerRef.current) {
+      try {
+        const iframe = playerRef.current.getIframe?.();
+        if (iframe && document.body.contains(iframe)) {
+          return playerRef.current.getCurrentTime();
+        }
+      } catch (e) {}
+    }
     return currentTime;
   }, [currentTime]);
 
   const setVolume = useCallback((vol: number) => {
-    // Handle volume if needed
+    if (playerRef.current) {
+      try {
+        const iframe = playerRef.current.getIframe?.();
+        if (iframe && document.body.contains(iframe)) {
+          playerRef.current.setVolume(vol);
+        }
+      } catch (e) {}
+    }
   }, []);
 
-  // Sync effect
+  // Poll for current time from YouTube Player
   useEffect(() => {
-    if (!isReady) return;
-    
-    if (roomState.playing) {
-      play(roomState.videoId ? `https://www.youtube.com/watch?v=${roomState.videoId}` : undefined);
-    } else {
-      pause();
+    const interval = setInterval(() => {
+      if (playerRef.current && isReady) {
+        try {
+          const iframe = playerRef.current.getIframe?.();
+          if (iframe && document.body.contains(iframe)) {
+            const time = playerRef.current.getCurrentTime();
+            setCurrentTime(time);
+          }
+        } catch (e) {}
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isReady]);
+
+  // Sync state effect: play/pause based on room state
+  useEffect(() => {
+    if (!isReady || !playerRef.current) return;
+
+    try {
+      const player = playerRef.current;
+      const iframe = player.getIframe?.();
+      if (!iframe || !document.body.contains(iframe)) return;
+
+      const currentState = player.getPlayerState?.();
+      
+      if (roomState.playing) {
+        if (currentState !== 1 && currentState !== 3) { // 1=playing, 3=buffering
+          player.playVideo?.();
+        }
+      } else {
+        if (currentState !== 2 && currentState !== -1) { // 2=paused, -1=unstarted
+          player.pauseVideo?.();
+        }
+      }
+    } catch (e) {
+      console.error("Error in play/pause sync:", e);
     }
   }, [roomState.playing, roomState.videoId, isReady]);
+
+  // Drift correction (Jam room sync) — keeps all users synced with the host
+  useEffect(() => {
+    if (!isReady || !playerRef.current) return;
+    
+    // Only apply drift correction if we are in a Jam Room and NOT the host
+    const state = useStore.getState();
+    if (!state.isInJamRoom || !state.roomId || state.isHost) return;
+
+    try {
+      const player = playerRef.current;
+      const iframe = player.getIframe?.();
+      if (!iframe || !document.body.contains(iframe)) return;
+
+      const localTime = player.getCurrentTime?.() || 0;
+      const diff = Math.abs(localTime - roomState.currentTime);
+      // If client time drifts more than 1.5 seconds from host, force seek to host's position
+      if (diff > 1.5) {
+        player.seekTo?.(roomState.currentTime, true);
+      }
+    } catch (e) {
+      console.error("Error in drift correction:", e);
+    }
+  }, [roomState.currentTime, isReady]);
 
   return {
     onReady,
@@ -103,7 +177,7 @@ export function useAudioPlayer() {
     seekTo,
     play,
     pause,
-    getCurrentTime: getCurrentTimeSync,
+    getCurrentTime,
     setVolume,
     isReady,
   };
