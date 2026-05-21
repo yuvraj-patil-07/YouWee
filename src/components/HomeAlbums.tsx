@@ -115,7 +115,7 @@ export function HomeAlbums() {
                 <p className="truncate text-[11px] sm:text-sm font-bold group-hover:text-void-accent transition-colors">{song.title}</p>
                 <p className="truncate text-[9px] sm:text-xs font-semibold text-white/40">{song.artist}</p>
               </div>
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={() => { playNext(song); addToast(`"${song.title}" added to play next`, 'success'); }}
                   className="p-1.5 rounded-lg bg-white/5 hover:bg-void-accent/20 text-white/40 hover:text-void-accent transition-all"
@@ -257,7 +257,7 @@ export function HomeAlbums() {
                       </p>
                       <p className="truncate text-[9px] font-medium text-white/30 italic">{song.artist}</p>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                        <button
                         onClick={() => { playNext(song); addToast(`"${song.title}" added to play next`, 'success'); }}
                         className="p-1 rounded bg-white/5 hover:bg-void-accent/20 text-white/40 hover:text-void-accent transition-all"

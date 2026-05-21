@@ -164,7 +164,7 @@ export function Search({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                           {song.duration > 0 && <span className="ml-2 text-white/20">{formatDur(song.duration)}</span>}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => { playNext(song); addToast(`"${song.title}" will play next`, 'success'); }}
                           className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/5 text-white/30 hover:text-void-accent hover:bg-void-accent/10 transition-all active:scale-90 border border-white/5"

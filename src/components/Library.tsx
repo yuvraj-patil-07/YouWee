@@ -91,7 +91,7 @@ export function Library({ view }: { view: 'library' | 'liked-songs' }) {
                   <p className="text-sm font-bold truncate group-hover:text-void-accent transition-colors">{song.title}</p>
                   <p className="text-[10px] font-semibold text-white/30">{song.artist}</p>
                 </div>
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <button 
                     onClick={() => { playNext(song); addToast(`"${song.title}" added to play next`, 'success'); }}
                     className="p-2 rounded-lg bg-white/5 hover:bg-void-accent/20 text-white/40 hover:text-void-accent transition-all"

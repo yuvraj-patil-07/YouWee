@@ -10,7 +10,6 @@ export function useAudioPlayer() {
   const playerRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
   const { roomState, setRoomState, isHost } = useStore();
-  const [currentTime, setCurrentTime] = useState(0);
 
   const onReady = (event: any) => {
     console.log('YouTube Player Ready');
@@ -82,16 +81,16 @@ export function useAudioPlayer() {
   }, []);
 
   const getCurrentTime = useCallback(() => {
-    if (playerRef.current) {
+    if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
       try {
         const iframe = playerRef.current.getIframe?.();
         if (iframe && document.body.contains(iframe)) {
-          return playerRef.current.getCurrentTime();
+          return playerRef.current.getCurrentTime() || 0;
         }
       } catch (e) {}
     }
-    return currentTime;
-  }, [currentTime]);
+    return 0;
+  }, []);
 
   const setVolume = useCallback((vol: number) => {
     if (playerRef.current) {
@@ -103,23 +102,6 @@ export function useAudioPlayer() {
       } catch (e) {}
     }
   }, []);
-
-  // Poll for current time from YouTube Player
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (playerRef.current && isReady) {
-        try {
-          const iframe = playerRef.current.getIframe?.();
-          if (iframe && document.body.contains(iframe)) {
-            const time = playerRef.current.getCurrentTime();
-            setCurrentTime(time);
-          }
-        } catch (e) {}
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [isReady]);
 
   // Sync state effect: play/pause based on room state
   useEffect(() => {
