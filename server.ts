@@ -74,6 +74,7 @@ let homeCache: { data: any; timestamp: number } | null = null;
 // ─── App ───────────────────────────────────────────────────────────────────
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1); // Required for rate limiting behind a reverse proxy (Render)
   const httpServer = createServer(app);
 
   const io = new Server(httpServer, {
