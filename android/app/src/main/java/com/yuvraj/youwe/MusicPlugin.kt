@@ -147,12 +147,38 @@ class MusicPlugin : Plugin() {
 
     @PluginMethod
     fun requestIgnoreBatteryOptimization(call: PluginCall) {
-        val intent = android.content.Intent()
-        intent.action = android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        intent.data = android.net.Uri.parse("package:" + context.packageName)
-        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        context.startActivity(intent)
-        call.resolve()
+        val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        val isIgnoring = pm.isIgnoringBatteryOptimizations(context.packageName)
+        val data = JSObject()
+        data.put("isIgnoring", isIgnoring)
+
+        if (!isIgnoring) {
+            activity.runOnUiThread {
+                try {
+                    val intent = android.content.Intent()
+                    intent.action = android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+                    intent.data = android.net.Uri.parse("package:" + context.packageName)
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    try {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        context.startActivity(intent)
+                    } catch (ex: Exception) {}
+                }
+            }
+        }
+        call.resolve(data)
+    }
+
+    @PluginMethod
+    fun isBatteryOptimizationIgnored(call: PluginCall) {
+        val pm = context.getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+        val isIgnoring = pm.isIgnoringBatteryOptimizations(context.packageName)
+        val data = JSObject()
+        data.put("isIgnoring", isIgnoring)
+        call.resolve(data)
     }
 
     override fun handleOnDestroy() {

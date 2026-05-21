@@ -14,7 +14,14 @@ export function useAudioPlayer() {
   useEffect(() => {
     const init = async () => {
       try {
+        const res = await NativeMusic.isBatteryOptimizationIgnored();
+        if (res && res.isIgnoring) return;
+
+        const hasPrompted = localStorage.getItem('youwe_battery_opt_prompted');
+        if (hasPrompted) return;
+
         await NativeMusic.requestIgnoreBatteryOptimization();
+        localStorage.setItem('youwe_battery_opt_prompted', 'true');
       } catch (e) {
         console.error("Battery opt prompt failed", e);
       }
