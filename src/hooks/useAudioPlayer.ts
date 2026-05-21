@@ -11,6 +11,17 @@ export function useAudioPlayer() {
   const [isReady, setIsReady] = useState(false);
   const { roomState, setRoomState, isHost } = useStore();
 
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await NativeMusic.requestIgnoreBatteryOptimization();
+      } catch (e) {
+        console.error("Battery opt prompt failed", e);
+      }
+    };
+    init();
+  }, []);
+
   const onReady = (event: any) => {
     console.log('YouTube Player Ready');
     playerRef.current = event.target;

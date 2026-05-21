@@ -9,4 +9,12 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(MusicPlugin.class);
         super.onCreate(savedInstanceState);
     }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            this.bridge.getWebView().onResume();
+        }
+    }
 }
