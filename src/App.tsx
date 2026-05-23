@@ -32,8 +32,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'search' | 'library' | 'liked-songs'>('home');
   const [isJamHubOpen, setIsJamHubOpen] = useState(window.innerWidth >= 1024);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [theme, setTheme] = useState<'void' | 'pookie'>(() => {
-    try { return localStorage.getItem('youwe_theme') === 'pookie' ? 'pookie' : 'void'; } catch { return 'void'; }
+  const [theme, setTheme] = useState<'void' | 'p'>(() => {
+    try { return localStorage.getItem('youwe_theme') === 'p' ? 'p' : 'void'; } catch { return 'void'; }
   });
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function App() {
     const hour = new Date().getHours();
     const timeMood = hour < 11 ? 'sakura-morning' : hour < 18 ? 'warm-sunset' : 'rainy-night';
     root.setAttribute('data-theme', theme);
-    root.setAttribute('data-pookie-time', timeMood);
+    root.setAttribute('data-p-time', timeMood);
     try { localStorage.setItem('youwe_theme', theme); } catch { /* ignore */ }
   }, [theme]);
 
@@ -69,7 +69,7 @@ export default function App() {
       import('./utils/colorUtils').then(({ getAverageColor }) => {
         getAverageColor(currentSong.thumbnail).then(color => {
           setAccentColor(color);
-          if (document.documentElement.getAttribute('data-theme') !== 'pookie') {
+          if (document.documentElement.getAttribute('data-theme') !== 'p') {
             document.documentElement.style.setProperty('--accent-color', color);
             document.documentElement.style.setProperty('--accent-glow', `${color}44`);
           }
@@ -119,7 +119,7 @@ export default function App() {
 
   return (
     <div className="h-screen w-full bg-void-bg text-white overflow-hidden flex flex-col relative selection:bg-void-accent/30 selection:text-white">
-      <PookieAtmosphere enabled={theme === 'pookie'} />
+      <PAtmosphere enabled={theme === 'p'} />
       {/* Top Header */}
       <header className="relative z-30 flex items-center justify-between gap-3 border-b border-white/5 bg-black/30 px-4 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -291,17 +291,17 @@ export default function App() {
   );
 }
 
-function PookieAtmosphere({ enabled }: { enabled: boolean }) {
+function PAtmosphere({ enabled }: { enabled: boolean }) {
   if (!enabled) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden pookie-atmosphere" aria-hidden="true">
-      <div className="pookie-ambient pookie-ambient-a" />
-      <div className="pookie-ambient pookie-ambient-b" />
-      <div className="pookie-rain" />
-      <div className="pookie-petals">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden p-atmosphere" aria-hidden="true">
+      <div className="p-ambient p-ambient-a" />
+      <div className="p-ambient p-ambient-b" />
+      <div className="p-rain" />
+      <div className="p-petals">
         {Array.from({ length: 9 }).map((_, index) => <span key={index} />)}
       </div>
-      <div className="pookie-paper" />
+      <div className="p-paper" />
     </div>
   );
 }

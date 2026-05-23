@@ -14,8 +14,8 @@ export function ProfileModal({
 }: {
   isOpen: boolean;
   onClose: () => void;
-  theme: 'void' | 'pookie';
-  onThemeChange: (theme: 'void' | 'pookie') => void;
+  theme: 'void' | 'p';
+  onThemeChange: (theme: 'void' | 'p') => void;
 }) {
   const { currentUser, setCurrentUser } = useStore();
   const [name, setName] = useState(currentUser?.displayName || '');
@@ -314,29 +314,29 @@ export function ProfileModal({
                   </div>
                 </div>
 
-                <div className="pookie-theme-card rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 p-3 sm:p-5">
+                <div className="p-theme-card rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 p-3 sm:p-5">
                   <div className="flex items-start justify-between gap-3 sm:gap-4">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-white/45">
                         <Sparkles className="h-3 w-3 sm:h-4 sm:w-4 text-void-accent" />
                         Appearance
                       </p>
-                      <h4 className="mt-1 sm:mt-2 text-lg sm:text-xl font-black text-white">Pookie Theme</h4>
+                      <h4 className="mt-1 sm:mt-2 text-lg sm:text-xl font-black text-white">P Theme</h4>
                     </div>
                     <button
                       type="button"
-                      onClick={() => onThemeChange(theme === 'pookie' ? 'void' : 'pookie')}
+                      onClick={() => onThemeChange(theme === 'p' ? 'void' : 'p')}
                       className={`relative h-7 w-12 sm:h-8 sm:w-14 shrink-0 rounded-full border transition-all ${
-                        theme === 'pookie'
+                        theme === 'p'
                           ? 'border-void-accent/60 bg-void-accent/25 shadow-[0_0_22px_var(--accent-glow)]'
                           : 'border-white/15 bg-white/10'
                       }`}
-                      aria-pressed={theme === 'pookie'}
-                      title="Toggle Pookie Theme"
+                      aria-pressed={theme === 'p'}
+                      title="Toggle P Theme"
                     >
                       <span
                         className={`absolute top-0.5 sm:top-1 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-white text-black shadow-lg transition-transform ${
-                          theme === 'pookie' ? 'translate-x-6 sm:translate-x-7' : 'translate-x-0.5 sm:translate-x-1'
+                          theme === 'p' ? 'translate-x-6 sm:translate-x-7' : 'translate-x-0.5 sm:translate-x-1'
                         }`}
                       >
                         <Flower2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
